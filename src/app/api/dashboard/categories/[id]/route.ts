@@ -29,6 +29,9 @@ export async function PATCH(
   const name = body.name != null ? String(body.name).trim().slice(0, 100) : undefined;
   const sortOrder = typeof body.sortOrder === "number" ? body.sortOrder : undefined;
   const isAvailable = typeof body.isAvailable === "boolean" ? body.isAvailable : undefined;
+  const stationId = "stationId" in body
+    ? (typeof body.stationId === "string" && body.stationId ? body.stationId : null)
+    : undefined;
 
   const updated = await prisma.menuCategory.update({
     where: { id },
@@ -36,6 +39,7 @@ export async function PATCH(
       ...(name !== undefined && { name }),
       ...(sortOrder !== undefined && { sortOrder }),
       ...(isAvailable !== undefined && { isAvailable }),
+      ...(stationId !== undefined && { stationId }),
     },
   });
   return NextResponse.json(updated);

@@ -94,7 +94,7 @@ function validateOptions(groups: OptionGroup[], selected: Record<string, string 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { tableToken, items, totalAmount, paymentPreference: prefRaw } = body as {
+    const { tableToken, items, totalAmount, paymentPreference: prefRaw, guestSessionId: rawGuestSession } = body as {
       tableToken: string;
       items: {
         menuItemId: string;
@@ -106,7 +106,9 @@ export async function POST(req: NextRequest) {
       }[];
       totalAmount: number;
       paymentPreference?: string;
+      guestSessionId?: string;
     };
+    const guestSessionId = typeof rawGuestSession === "string" && rawGuestSession.length <= 64 ? rawGuestSession.trim() || null : null;
 
     if (!tableToken || typeof tableToken !== "string" || tableToken.length > 100) {
       return NextResponse.json({ error: "Invalid table" }, { status: 400 });
@@ -154,7 +156,11 @@ export async function POST(req: NextRequest) {
         category: { restaurantId: table.restaurantId, isAvailable: true },
         isAvailable: true,
       },
-      select: { id: true, price: true, optionGroups: true, stationId: true, station: { select: { name: true } } },
+      select: {
+        id: true, price: true, optionGroups: true, stationId: true,
+        station: { select: { name: true } },
+        category: { select: { stationId: true, station: { select: { name: true } } } },
+      },
     });
     const itemById = Object.fromEntries(menuItems.map((m) => [m.id, m]));
 
@@ -287,6 +293,7 @@ export async function POST(req: NextRequest) {
         status: "pending",
         paymentPreference,
         waiterRelayAt,
+        guestSessionId,
         items: {
           create: validatedLines.map((i) => ({
             menuItemId: i.menuItemId,
@@ -349,7 +356,7 @@ export async function POST(req: NextRequest) {
     const stationGroups = new Map<string, { station: string; items: typeof order.items }>();
     for (const line of order.items) {
       const mi = itemById[line.menuItemId];
-      const stationName = mi?.station?.name ?? "Kitchen";
+      const stationName = mi?.station?.name ?? mi?.category?.station?.name ?? "Kitchen";
       const existing = stationGroups.get(stationName);
       if (existing) {
         existing.items.push(line);

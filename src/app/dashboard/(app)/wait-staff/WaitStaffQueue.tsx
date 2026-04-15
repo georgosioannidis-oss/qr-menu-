@@ -82,7 +82,7 @@ export function WaitStaffQueue() {
   }, []);
 
   useEffect(() => {
-    const t = setInterval(load, 12000);
+    const t = setInterval(load, 1000);
     return () => clearInterval(t);
   }, []);
 

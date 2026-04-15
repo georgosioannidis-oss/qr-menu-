@@ -44,6 +44,8 @@ type Category = {
   name: string;
   sortOrder: number;
   isAvailable: boolean;
+  stationId?: string | null;
+  station?: Station | null;
   items: MenuItem[];
 };
 
@@ -310,6 +312,7 @@ function SortableMenuCategoryBlock({
   togglingCategoryId,
   deletingItemId,
   deletingCategoryId,
+  stations,
   onOpenAddItem,
   onOpenEditItem,
   compactForCategoryReorder,
@@ -317,6 +320,7 @@ function SortableMenuCategoryBlock({
   handleDeleteCategory,
   handleToggleAvailability,
   handleToggleCategoryAvailability,
+  handleUpdateCategoryStation,
   handleUpdateItem,
   handleDeleteItem,
 }: {
@@ -327,6 +331,7 @@ function SortableMenuCategoryBlock({
   togglingCategoryId: string | null;
   deletingItemId: string | null;
   deletingCategoryId: string | null;
+  stations: Station[];
   onOpenAddItem: (categoryId: string) => void;
   onOpenEditItem: (itemId: string) => void;
   compactForCategoryReorder: boolean;
@@ -334,6 +339,7 @@ function SortableMenuCategoryBlock({
   handleDeleteCategory: (id: string) => void;
   handleToggleAvailability: (itemId: string, makeAvailable: boolean) => void;
   handleToggleCategoryAvailability: (categoryId: string, makeAvailable: boolean) => void;
+  handleUpdateCategoryStation: (categoryId: string, stationId: string | null) => void;
   handleUpdateItem: (
     id: string,
     updates: {
@@ -452,8 +458,30 @@ function SortableMenuCategoryBlock({
                   Hidden from guests
                 </span>
               ) : null}
+              {cat.station ? (
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary ring-1 ring-primary/20">
+                  {cat.station.name}
+                </span>
+              ) : null}
             </div>
-            <p className="mt-1 text-xs text-ink-muted">Drag items by the grip, or move them to another category.</p>
+            {stations.length > 0 ? (
+              <div className="mt-1.5 flex items-center gap-2">
+                <label className="text-xs font-medium text-ink-muted whitespace-nowrap">Station:</label>
+                <select
+                  value={cat.stationId ?? ""}
+                  onChange={(e) => handleUpdateCategoryStation(cat.id, e.target.value || null)}
+                  className="rounded-lg border border-border bg-card px-2 py-1 text-xs text-ink shadow-sm focus:border-primary focus:outline-none"
+                >
+                  <option value="">Default (Kitchen)</option>
+                  {stations.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-ink-muted">All items in this category route here unless overridden per item.</span>
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-ink-muted">Drag items by the grip, or move them to another category.</p>
+            )}
           </div>
         </div>
         {headerActions}
@@ -872,6 +900,28 @@ export function MenuManager() {
     }
   };
 
+  const handleUpdateCategoryStation = async (categoryId: string, stationId: string | null) => {
+    try {
+      const res = await fetch(`/api/dashboard/categories/${categoryId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stationId }),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        let d: { error?: string } = {};
+        try { if (t) d = JSON.parse(t); } catch {}
+        throw new Error(d.error ?? "Could not update category station");
+      }
+      await fetchCategories();
+      toast.success(stationId ? "Category station updated" : "Category station reset to default");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error";
+      setError(msg);
+      toast.error(msg);
+    }
+  };
+
   const handleToggleCategoryAvailability = async (categoryId: string, makeAvailable: boolean) => {
     setTogglingCategoryId(categoryId);
     setError("");
@@ -1085,6 +1135,7 @@ export function MenuManager() {
                   togglingCategoryId={togglingCategoryId}
                   deletingItemId={deletingItemId}
                   deletingCategoryId={deletingCategoryId}
+                  stations={stations}
                   onOpenAddItem={openAddItem}
                   onOpenEditItem={openEditItem}
                   compactForCategoryReorder={activeDrag?.kind === "category"}
@@ -1092,6 +1143,7 @@ export function MenuManager() {
                   handleDeleteCategory={handleDeleteCategory}
                   handleToggleAvailability={handleToggleAvailability}
                   handleToggleCategoryAvailability={handleToggleCategoryAvailability}
+                  handleUpdateCategoryStation={handleUpdateCategoryStation}
                   handleUpdateItem={handleUpdateItem}
                   handleDeleteItem={handleDeleteItem}
                 />

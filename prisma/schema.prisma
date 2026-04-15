@@ -127,10 +127,14 @@ model MenuCategory {
   isAvailable  Boolean  @default(true)
   restaurantId String
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  /// Default preparation station for all items in this category (null → Kitchen). Individual items can override.
+  stationId    String?
+  station      Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
 
   items MenuItem[]
 
   @@index([restaurantId])
+  @@index([stationId])
 }
 
 model MenuItem {
@@ -163,7 +167,8 @@ model Station {
   restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
 
-  menuItems MenuItem[]
+  menuItems      MenuItem[]
+  menuCategories MenuCategory[]
 
   @@index([restaurantId])
 }
@@ -188,11 +193,14 @@ model Order {
   kitchenTicketPrintedAt DateTime?
   /// Waiter confirmed payment for the whole ticket (all lines checked). Separate from Stripe / kitchen `paid` flow.
   billPaidAt DateTime?
+  /// Opaque per-device ID so guests only see their own orders in "Your orders" (localStorage on the phone).
+  guestSessionId String?
 
   items OrderItem[]
 
   @@index([restaurantId])
   @@index([restaurantId, createdAt(sort: Desc)])
+  @@index([tableId, guestSessionId, createdAt(sort: Desc)])
   @@index([restaurantId, status, createdAt(sort: Desc)])
   @@index([restaurantId, waiterRelayAt])
 }

@@ -23,8 +23,8 @@ const M = {
   backToMenu: "Back to menu",
   yourOrders: "Your orders",
   yourOrdersHint:
-    "Orders from this table in roughly the last 24 hours (so new guests don’t see old visits). Tap one for status.",
-  noOrdersYet: "No orders from this table yet.",
+    "Orders you placed from this device. Tap one for status.",
+  noOrdersYet: "You haven't placed any orders yet.",
   couldNotLoadOrders: "Could not load orders. Try again.",
   cancel: "Cancel",
   emptyMenuTitle: "No dishes to show yet",
@@ -232,6 +232,17 @@ export function MenuView({
   const [pullDistance, setPullDistance] = useState(0);
   const [callWaiterBusy, setCallWaiterBusy] = useState(false);
 
+  const [guestSessionId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const key = "qr_menu_guest_sid";
+    let sid = localStorage.getItem(key);
+    if (!sid) {
+      sid = crypto.randomUUID();
+      localStorage.setItem(key, sid);
+    }
+    return sid;
+  });
+
   const callWaiter = useCallback(async () => {
     setCallWaiterBusy(true);
     toast.success(M.callWaiterSent);
@@ -298,7 +309,7 @@ export function MenuView({
       setOrderHistoryError(null);
       try {
         const res = await fetch(
-          `/api/orders/for-table?tableToken=${encodeURIComponent(tableToken)}`
+          `/api/orders/for-table?tableToken=${encodeURIComponent(tableToken)}&guestSessionId=${encodeURIComponent(guestSessionId)}`
         );
         const text = await res.text();
         let data: { error?: string; orders?: TableOrderSummary[] } = {};
@@ -408,6 +419,7 @@ export function MenuView({
         optionPriceModifier: c.optionPriceModifier ?? 0,
       })),
       totalAmount: totalCents,
+      guestSessionId: guestSessionId || undefined,
     };
     if (!usesOnlineCheckout && paymentPreference) {
       payload.paymentPreference = paymentPreference;
@@ -597,8 +609,8 @@ export function MenuView({
 
   const mainBottomPad =
     totalItems > 0
-      ? "pb-[calc(11rem+env(safe-area-inset-bottom,0px))]"
-      : "pb-[calc(7rem+env(safe-area-inset-bottom,0px))]";
+      ? "pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]"
+      : "pb-[calc(4rem+env(safe-area-inset-bottom,0px))]";
 
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 flex-col overflow-hidden bg-surface">
@@ -661,49 +673,49 @@ export function MenuView({
           <section
             key={cat.id}
             id={`menu-cat-${cat.id}`}
-            className={`scroll-mt-[11rem] sm:scroll-mt-[10.5rem] ${catIndex > 0 ? "mt-12 border-t border-border/60 pt-10 sm:mt-10 sm:pt-8" : ""}`}
+            className={`scroll-mt-[11rem] sm:scroll-mt-[10.5rem] ${catIndex > 0 ? "mt-8 border-t border-border/60 pt-6" : ""}`}
           >
-            <h2 className="mb-5 text-[0.95rem] font-semibold uppercase tracking-wide text-ink-muted sm:mb-4 sm:text-base">
+            <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-ink-muted">
               {cat.name}
             </h2>
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {cat.items.map((item) => (
                 <li
                   key={item.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:flex-row sm:gap-4"
+                  className="flex flex-row gap-3 rounded-xl border border-border bg-card p-2.5 shadow-sm transition-shadow hover:shadow-md"
                 >
                   {item.imageUrl && (
                     <button
                       type="button"
                       onClick={() => setImagePreviewItem(item)}
-                      className="min-h-[44px] min-w-[44px] shrink-0 self-start sm:self-auto"
+                      className="shrink-0 self-start"
                       aria-label={M.viewPhoto}
                     >
                       <img
                         src={item.imageUrl}
                         alt=""
-                        className="h-24 w-24 rounded-xl object-cover sm:h-24 sm:w-24"
+                        className="h-16 w-16 rounded-lg object-cover"
                       />
                     </button>
                   )}
                   <div className="flex min-w-0 flex-1 flex-col justify-between">
                     <div>
-                      <p className="text-lg font-semibold leading-snug text-ink sm:text-base">{item.name}</p>
+                      <p className="text-sm font-semibold leading-snug text-ink">{item.name}</p>
                       {item.description && (
-                        <p className="mt-1 line-clamp-2 text-base leading-relaxed text-ink-muted sm:text-sm">
+                        <p className="mt-0.5 line-clamp-1 text-xs leading-snug text-ink-muted">
                           {item.description}
                         </p>
                       )}
                     </div>
-                    <div className="mt-3 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                      <span className="shrink-0 text-lg font-bold tabular-nums text-primary sm:text-xl">
+                    <div className="mt-1.5 flex min-w-0 flex-row items-center gap-2">
+                      <span className="shrink-0 text-sm font-bold tabular-nums text-primary">
                         {formatPrice(item.price)}
                       </span>
                       {hasOptions(item) ? (
                         <button
                           type="button"
                           onClick={() => setOptionsModalItem(item)}
-                          className="min-h-[44px] w-full min-w-0 rounded-full border-2 border-primary bg-card px-3 py-2 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 sm:max-w-[12.5rem] sm:flex-1 sm:text-base"
+                          className="min-h-[36px] min-w-0 rounded-full border-2 border-primary bg-card px-3 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10"
                         >
                           {M.customiseAdd}
                         </button>
@@ -711,7 +723,7 @@ export function MenuView({
                         <button
                           type="button"
                           onClick={() => addToCart(item)}
-                          className="min-h-[44px] w-full min-w-0 rounded-full bg-primary px-3 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-black/10 transition-colors hover:bg-primary-hover sm:max-w-[12.5rem] sm:flex-1 sm:text-base"
+                          className="min-h-[36px] min-w-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-sm ring-1 ring-black/10 transition-colors hover:bg-primary-hover"
                         >
                           {M.addToOrder}
                         </button>
@@ -729,21 +741,21 @@ export function MenuView({
         <div
           className="pointer-events-none fixed right-3 z-[18] flex flex-col items-center gap-1 sm:right-4"
           style={{
-            bottom: totalItems > 0 ? "7.75rem" : "max(1rem, env(safe-area-inset-bottom, 0px))",
+            bottom: totalItems > 0 ? "4.5rem" : "max(1rem, env(safe-area-inset-bottom, 0px))",
           }}
         >
           <button
             type="button"
             onClick={() => void callWaiter()}
             disabled={callWaiterBusy}
-            className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-white shadow-lg ring-2 ring-violet-400/50 transition hover:bg-violet-700 active:scale-95 disabled:opacity-55 dark:bg-violet-600 dark:ring-violet-400/35 dark:hover:bg-violet-500"
+            className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full bg-violet-600 text-white shadow-lg ring-2 ring-violet-400/50 transition hover:bg-violet-700 active:scale-95 disabled:opacity-55 dark:bg-violet-600 dark:ring-violet-400/35 dark:hover:bg-violet-500"
             aria-label={M.callWaiterAria}
             title={M.callWaiterAria}
           >
             {callWaiterBusy ? (
-              <Spinner className="h-6 w-6 border-white border-t-transparent" label="" />
+              <Spinner className="h-5 w-5 border-white border-t-transparent" label="" />
             ) : (
-              <WaiterBellGlyph className="h-7 w-7" />
+              <WaiterBellGlyph className="h-5 w-5" />
             )}
           </button>
           <span className="pointer-events-none max-w-[6rem] text-center text-[0.68rem] font-medium leading-tight text-ink-muted">
@@ -872,27 +884,21 @@ export function MenuView({
 
       {totalItems > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-[25] shrink-0 border-t border-border bg-surface pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-          <div className="max-w-lg mx-auto px-4 py-4">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-base font-medium text-ink-muted sm:text-sm">
-                {itemsInCartLabel(totalItems)}
-              </span>
-              <span className="text-xl font-bold tabular-nums text-ink sm:text-lg">{formatPrice(totalCents)}</span>
-            </div>
-            <div className="flex min-w-0 flex-col gap-2 [@media(min-width:420px)]:flex-row [@media(min-width:420px)]:gap-3">
-              <button
-                type="button"
-                onClick={() => setCartOpen(true)}
-                className="min-h-[48px] w-full min-w-0 flex-1 rounded-xl border-2 border-primary bg-card py-3 text-sm font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10 [@media(min-width:420px)]:py-3.5 sm:text-base"
-              >
-                {M.viewCart}
-              </button>
-              <button
-                type="button"
-                onClick={handlePlaceOrderClick}
-                disabled={isPlacing}
-                className="flex min-h-[48px] w-full min-w-0 flex-1 items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-md ring-1 ring-black/10 transition-all hover:bg-primary-hover disabled:opacity-60 [@media(min-width:420px)]:py-3.5 sm:text-base"
-              >
+          <div className="max-w-lg mx-auto flex items-center gap-2 px-3 py-2">
+            <button
+              type="button"
+              onClick={() => setCartOpen(true)}
+              className="flex min-h-[40px] min-w-0 items-center gap-2 rounded-lg border-2 border-primary bg-card px-3 py-1.5 text-xs font-semibold text-primary shadow-sm transition-colors hover:bg-primary/10"
+            >
+              <span>{itemsInCartLabel(totalItems)}</span>
+              <span className="font-bold tabular-nums">{formatPrice(totalCents)}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePlaceOrderClick}
+              disabled={isPlacing}
+              className="flex min-h-[40px] min-w-0 flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-semibold text-white shadow-md ring-1 ring-black/10 transition-all hover:bg-primary-hover disabled:opacity-60"
+            >
                 {isPlacing ? (
                   <>
                     <Spinner className="h-4 w-4 border-white border-t-transparent" label={M.placing} />
@@ -904,7 +910,6 @@ export function MenuView({
                   M.placeOrder
                 )}
               </button>
-            </div>
           </div>
         </div>
       )}

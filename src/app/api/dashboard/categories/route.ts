@@ -13,6 +13,7 @@ export async function GET() {
     where: { restaurantId },
     orderBy: { sortOrder: "asc" },
     include: {
+      station: { select: { id: true, name: true } },
       items: {
         orderBy: { sortOrder: "asc" },
         include: { station: { select: { id: true, name: true } } },
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
     if (!name) {
       return NextResponse.json({ error: "Name required" }, { status: 400 });
     }
+    const stationId = typeof body.stationId === "string" && body.stationId ? body.stationId : null;
 
     const maxOrder = await prisma.menuCategory
       .aggregate({
@@ -47,6 +49,7 @@ export async function POST(req: NextRequest) {
         restaurantId,
         name,
         sortOrder: maxOrder,
+        ...(stationId && { stationId }),
       },
     });
     return NextResponse.json(category);

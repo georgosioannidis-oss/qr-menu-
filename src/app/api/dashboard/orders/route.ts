@@ -27,7 +27,11 @@ export async function GET(req: NextRequest) {
       items: {
         include: {
           menuItem: {
-            select: { name: true, stationId: true, station: { select: { id: true, name: true } } },
+            select: {
+              name: true, stationId: true,
+              station: { select: { id: true, name: true } },
+              category: { select: { stationId: true, station: { select: { id: true, name: true } } } },
+            },
           },
         },
       },

@@ -15,6 +15,7 @@ type OrderItem = {
     name: string;
     stationId?: string | null;
     station?: { id: string; name: string } | null;
+    category?: { stationId?: string | null; station?: { id: string; name: string } | null } | null;
   };
 };
 
@@ -283,7 +284,7 @@ export function OrdersList() {
     let hasDefault = false;
     for (const o of orders) {
       for (const item of o.items) {
-        const s = item.menuItem.station;
+        const s = item.menuItem.station ?? item.menuItem.category?.station ?? null;
         if (s) byId.set(s.id, s.name);
         else hasDefault = true;
       }
@@ -299,9 +300,10 @@ export function OrdersList() {
       if (statusFilter !== "all" && (o.status ?? "pending") !== statusFilter) return false;
       if (tableFilter !== "all" && o.table.token !== tableFilter) return false;
       if (stationFilter !== "all") {
+        const effectiveStation = (i: OrderItem) => i.menuItem.station ?? i.menuItem.category?.station ?? null;
         const match = stationFilter === "__default"
-          ? o.items.some((i) => !i.menuItem.station)
-          : o.items.some((i) => i.menuItem.station?.id === stationFilter);
+          ? o.items.some((i) => !effectiveStation(i))
+          : o.items.some((i) => effectiveStation(i)?.id === stationFilter);
         if (!match) return false;
       }
       if (q) {
@@ -557,7 +559,7 @@ export function OrdersList() {
             <ul className="text-sm space-y-2">
               {order.items.map((line, i) => {
                 const extra = [line.notes, line.selectedOptionsSummary].filter(Boolean).join(" · ");
-                const stName = line.menuItem.station?.name;
+                const stName = line.menuItem.station?.name ?? line.menuItem.category?.station?.name;
                 return (
                   <li key={i} className="flex justify-between gap-2 py-1.5 border-b border-border/60 last:border-0">
                     <div>

@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 const MAX_ORDERS = 30;
-/** Only show recent visits on the same QR so new guests don’t see last week’s bills. */
 const GUEST_ORDER_HISTORY_HOURS = 24;
 
 /**
- * GET /api/orders/for-table?tableToken=xxx
- * Recent orders for this table (guest menu — same QR / table link). No auth; token scopes access.
+ * GET /api/orders/for-table?tableToken=xxx&guestSessionId=yyy
+ * Recent orders for this guest on this table. When guestSessionId is provided,
+ * only orders placed by that device are returned.
  */
 export async function GET(req: NextRequest) {
   const tableToken = req.nextUrl.searchParams.get("tableToken");
@@ -29,8 +29,17 @@ export async function GET(req: NextRequest) {
   const relayEnabled = table.restaurant.waiterRelayEnabled !== false;
   const since = new Date(Date.now() - GUEST_ORDER_HISTORY_HOURS * 60 * 60 * 1000);
 
+  const guestSessionId = req.nextUrl.searchParams.get("guestSessionId");
+  const where: Record<string, unknown> = {
+    tableId: table.id,
+    createdAt: { gte: since },
+  };
+  if (guestSessionId && typeof guestSessionId === "string" && guestSessionId.length <= 64) {
+    where.guestSessionId = guestSessionId;
+  }
+
   const rows = await prisma.order.findMany({
-    where: { tableId: table.id, createdAt: { gte: since } },
+    where,
     orderBy: { createdAt: "desc" },
     take: MAX_ORDERS,
     select: {

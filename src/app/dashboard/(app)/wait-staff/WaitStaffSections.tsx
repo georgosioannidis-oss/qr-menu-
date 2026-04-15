@@ -7,14 +7,14 @@ import { WaitStaffTablePicker } from "./WaitStaffTablePicker";
 
 const SECTIONS = [
   {
-    id: "tables" as const,
-    label: "Take orders",
-    hint: "Open a table’s guest menu in a new tab and place items for the guest.",
-  },
-  {
     id: "incoming" as const,
     label: "Incoming",
-    hint: "Guest orders waiting for you. Accept to send to the kitchen, or decline if you can’t take them.",
+    hint: "Guest orders waiting for you. Accept to send to the kitchen, or decline if you can't take them.",
+  },
+  {
+    id: "tables" as const,
+    label: "Take order manually",
+    hint: "Open a table's guest menu in a new tab and place items for the guest.",
   },
   {
     id: "bills" as const,
@@ -26,7 +26,7 @@ const SECTIONS = [
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 export function WaitStaffSections() {
-  const [tab, setTab] = useState<SectionId>("tables");
+  const [tab, setTab] = useState<SectionId>("incoming");
   const [incomingCount, setIncomingCount] = useState<number | null>(null);
   const [waiterCallCount, setWaiterCallCount] = useState<number | null>(null);
 
@@ -60,7 +60,7 @@ export function WaitStaffSections() {
 
   useEffect(() => {
     void refreshIncomingCount();
-    const t = setInterval(refreshIncomingCount, 12000);
+    const t = setInterval(refreshIncomingCount, 1000);
     return () => clearInterval(t);
   }, [refreshIncomingCount]);
 
