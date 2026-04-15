@@ -1,0 +1,216 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// DIRECT_URL = Supabase "Direct connection" string (for migrate/db push). See .env.example.
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Restaurant {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  logoUrl      String?
+  primaryColor String?  // hex – main buttons, accents
+  colorMode    String?  // "light" | "dark"
+  /// When true, new orders wait for wait staff to send them before the kitchen queue sees them.
+  waiterRelayEnabled Boolean @default(true)
+  /// When true and Stripe + NEXT_PUBLIC_APP_URL are configured, guests pay online before order is confirmed.
+  onlinePaymentEnabled Boolean @default(false)
+  /// Guest menu: offer “Card” as how they plan to pay (at table / terminal). Ignored when only online checkout is used.
+  payAtTableCardEnabled Boolean @default(true)
+  /// Guest menu: offer “Cash”.
+  payAtTableCashEnabled   Boolean @default(true)
+  /// Bearer token for the local print-agent script (kitchen PC). Null = API disabled.
+  printAgentToken String? @unique
+  /// When true, kitchen & wait staff may open and edit Menu + Tables. When false (default), only owner-type logins can.
+  staffMayEditMenuTables Boolean @default(false)
+  /// Optional nav label for the orders / prep queue screen (default: "Orders"). E.g. "Bar", "Kitchen", "Expo".
+  navLabelOrdersQueue   String?
+  /// Optional nav label for waiter screen (default: "Waiter"). E.g. "Floor", "Runners".
+  navLabelGuestOrders   String?
+  /// Optional: minutes from order time for guest-facing prep estimate on order status. Null = hidden.
+  prepTimeEstimateMinutes Int?
+  /// When true, guest QR menus cannot place new orders (kitchen overload). Staff dashboard unchanged.
+  guestQrOrderingPaused Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  users          RestaurantUser[]
+  staffInvites   StaffInvite[]
+  tables         Table[]
+  tableSections  TableSection[]
+  menuCategories MenuCategory[]
+  orders         Order[]
+  stations       Station[]
+}
+
+/// Named area on the dashboard for grouping tables (e.g. pool sun beds). Guest URLs are per table and unchanged.
+model TableSection {
+  id           String   @id @default(cuid())
+  name         String
+  sortOrder    Int      @default(0)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables       Table[]
+
+  @@index([restaurantId])
+}
+
+/// Single-use link for an employee to create a dashboard account (e.g. wait staff).
+model StaffInvite {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  role         String
+  /// For role `staff`: which dashboard areas this invite grants (see `staff-permissions.ts`).
+  permissions  Json?
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  usedAt       DateTime?
+  /// Lowercase email of the account created when this invite was consumed (for Office history).
+  usedByEmail  String?
+
+  @@index([restaurantId])
+  @@index([restaurantId, usedByEmail])
+}
+
+model RestaurantUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String?
+  lastName     String?
+  role         String   @default("owner")
+  /// When role is `staff`, JSON map of section keys → boolean (see `staff-permissions.ts`). Null for owner / legacy roles.
+  permissions  Json?
+  /// Optional job title shown in Office (e.g. "Bartender", "Line cook", "Club host").
+  title        String?
+  /// When true, sign-in is rejected and dashboard layout redirects to login.
+  disabled     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+model Table {
+  id             String   @id @default(cuid())
+  name           String
+  token          String   @unique
+  /// Order within the table section (dashboard / drag-and-drop).
+  sortOrder      Int      @default(0)
+  restaurantId   String
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tableSectionId String?
+  tableSection   TableSection? @relation(fields: [tableSectionId], references: [id], onDelete: Restrict)
+  /// Set when the guest taps “Call waiter” on the menu; staff clears after visiting the table.
+  waiterCalledAt DateTime?
+
+  orders Order[]
+
+  @@index([restaurantId])
+  @@index([restaurantId, waiterCalledAt])
+  @@index([tableSectionId])
+  @@index([tableSectionId, sortOrder])
+}
+
+model MenuCategory {
+  id           String   @id @default(cuid())
+  name         String
+  sortOrder    Int      @default(0)
+  /// When false, the whole section is hidden on guest menus (like all items unavailable).
+  isAvailable  Boolean  @default(true)
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  items MenuItem[]
+
+  @@index([restaurantId])
+}
+
+model MenuItem {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  price        Int
+  imageUrl     String?
+  isAvailable  Boolean  @default(true)
+  /// Drinks / add-ons: guest order status shows “very soon” instead of the kitchen minute estimate.
+  quickPrep    Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  categoryId   String
+  category     MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  optionGroups String?  // JSON: array of { id, label, required, type: 'single'|'multi', choices: [{ id, label, priceCents }] }
+  /// Preparation station for order routing (null → default kitchen).
+  stationId    String?
+  station      Station? @relation(fields: [stationId], references: [id], onDelete: SetNull)
+
+  orderItems OrderItem[]
+
+  @@index([stationId])
+}
+
+/// Preparation station for order routing (e.g. Bar, Kitchen, Grill). Per-restaurant.
+model Station {
+  id           String   @id @default(cuid())
+  name         String
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+
+  menuItems MenuItem[]
+
+  @@index([restaurantId])
+}
+
+model Order {
+  id             String   @id @default(cuid())
+  tableId        String
+  table          Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  restaurantId   String
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  /// pending → paid → preparing → ready → delivered; or "declined" if rejected at wait staff before kitchen.
+  status         String   @default("pending")
+  totalAmount    Int
+  stripeSessionId String?
+  createdAt      DateTime @default(now())
+  paidAt        DateTime?
+  /// How the guest intends to pay when not using online checkout: "card" | "cash". Null for legacy / online Stripe orders.
+  paymentPreference String?
+  /// Set when wait staff sends the order to the kitchen (only used when restaurant.waiterRelayEnabled).
+  waiterRelayAt DateTime?
+  /// Set when the automated print-agent acknowledges a kitchen ticket (avoids duplicate prints).
+  kitchenTicketPrintedAt DateTime?
+  /// Waiter confirmed payment for the whole ticket (all lines checked). Separate from Stripe / kitchen `paid` flow.
+  billPaidAt DateTime?
+
+  items OrderItem[]
+
+  @@index([restaurantId])
+  @@index([restaurantId, createdAt(sort: Desc)])
+  @@index([restaurantId, status, createdAt(sort: Desc)])
+  @@index([restaurantId, waiterRelayAt])
+}
+
+model OrderItem {
+  id                  String   @id @default(cuid())
+  orderId             String
+  order               Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId          String
+  menuItem            MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  quantity            Int
+  unitPrice           Int
+  notes                   String?  // free-text note to kitchen
+  selectedOptions         String?  // JSON: { groupId: choiceId | choiceId[] }
+  selectedOptionsSummary String?  // e.g. "Medium, Extra cheese" for display
+  optionPriceModifier     Int      @default(0) // extra cents from options
+  /// Waiter checked off this line when collecting payment at the table.
+  billLinePaid            Boolean  @default(false)
+
+  @@index([orderId])
+}

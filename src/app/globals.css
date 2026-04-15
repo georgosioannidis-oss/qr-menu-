@@ -1,0 +1,141 @@
+/* Tailwind v4 entry — replaces @tailwind base/components/utilities */
+@import "tailwindcss";
+
+/*
+ * Theme tokens → utilities: bg-surface, text-ink, border-border, bg-primary, etc.
+ * Values resolve from CSS variables so guest layout can override --surface, --primary, …
+ */
+@theme {
+  --color-surface: var(--surface, #f5f5f5);
+  --color-card: var(--card, #ffffff);
+  --color-primary: var(--primary, #c15c2a);
+  --color-primary-hover: var(--primary-hover, #a04a22);
+  --color-ink: var(--ink, #171717);
+  --color-ink-muted: var(--ink-muted, #525252);
+  --color-border: var(--border, rgba(0, 0, 0, 0.1));
+}
+
+:root {
+  --surface: #f5f5f5;
+  --card: #ffffff;
+  --primary: #c15c2a;
+  --primary-hover: #a04a22;
+  --ink: #171717;
+  --ink-muted: #525252;
+  --border: rgba(0, 0, 0, 0.1);
+}
+
+/* Guest pages may set this on a wrapper; dashboard uses `.dashboard-theme-root[data-theme]` instead. */
+[data-theme="dark"] {
+  --surface: #0a0a0a;
+  --card: #171717;
+  --ink: #fafafa;
+  --ink-muted: #a3a3a3;
+  --border: rgba(255, 255, 255, 0.12);
+}
+
+/*
+ * Dashboard light/dark follows restaurant branding (`data-theme` on `.dashboard-theme-root`).
+ * Do not use Tailwind `dark:` there — it keys off OS dark mode and breaks contrast (e.g. light text on light cards).
+ * Use `group-data-[theme=dark]/dashboard:` with `group/dashboard` on the theme root (see app dashboard layout).
+ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--surface);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+}
+
+/* Slightly larger base type on narrow phones; desktop unchanged */
+@media (max-width: 639px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* Price / numeric fields: remove browser up–down spin buttons */
+input.input-no-spin::-webkit-outer-spin-button,
+input.input-no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input.input-no-spin {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/*
+ * Dashboard layout sets --primary, --surface, … via inline style. Tailwind v4 utilities use
+ * --color-* from @theme; map them here so nested pages (e.g. Orders) pick up saved branding.
+ */
+.dashboard-theme-root {
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-border: var(--border);
+}
+
+/* Dashboard sign-in: emerald accent (independent of restaurant branding on :root). */
+.login-page-theme {
+  --primary: #10b981;
+  --primary-hover: #059669;
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+}
+
+/*
+ * Readable wrapping: prefer spaces between words; hyphenate long words (needs html lang) instead of
+ * chopping mid-word. Use on dashboard main + targeted UI. Avoid `break-all` for prose.
+ */
+@layer utilities {
+  .dashboard-copy {
+    overflow-wrap: break-word;
+    word-break: normal;
+    hyphens: auto;
+  }
+  .dashboard-copy-mono {
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+  @supports (text-wrap: pretty) {
+    .text-wrap-pretty {
+      text-wrap: pretty;
+    }
+  }
+}
+
+/* Dashboard order ticket: hide controls when printing */
+@media print {
+  @page {
+    margin: 12mm;
+    size: auto;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-zone {
+    background: #fff !important;
+  }
+  .ticket-print {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+}

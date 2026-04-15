@@ -1,0 +1,48 @@
+{
+  "categories": [
+    {
+      "name": "Starters",
+      "sortOrder": 0,
+      "items": [
+        {
+          "name": "Soup of the Day",
+          "description": "Chef's daily selection with bread",
+          "priceCents": 699
+        },
+        {
+          "name": "House Salad",
+          "description": "Mixed greens, cherry tomatoes, vinaigrette",
+          "priceCents": 599
+        }
+      ]
+    },
+    {
+      "name": "Mains",
+      "sortOrder": 1,
+      "items": [
+        {
+          "name": "Classic Burger",
+          "description": "Beef patty, lettuce, tomato, fries",
+          "priceCents": 1299
+        },
+        {
+          "name": "Pasta of the Day",
+          "description": "Ask your server for today's special",
+          "priceCents": 1499
+        }
+      ]
+    },
+    {
+      "name": "Drinks",
+      "sortOrder": 2,
+      "items": [
+        { "name": "Sparkling Water", "description": null, "priceCents": 399 },
+        {
+          "name": "Coffee",
+          "description": "Espresso, americano, or latte",
+          "priceCents": 449
+        }
+      ]
+    }
+  ]
+}
